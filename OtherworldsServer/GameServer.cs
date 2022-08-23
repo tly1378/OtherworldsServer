@@ -11,15 +11,19 @@ namespace OtherworldsServer
 {
     class ClientHandler
     {
+        GameServer server;
+        bool run = true;
+
         public Socket socket;
         public Thread receiverThread;
         public Thread senderThread;
         public readonly Queue<string> sendQueue = new Queue<string>();
         public readonly Queue<string> receiveQueue = new Queue<string>();
 
-        public ClientHandler(Socket socket)
+        public ClientHandler(Socket socket, GameServer server)
         {
             this.socket = socket;
+            this.server = server;
 
             receiverThread = new Thread(() => { ReceiveLoop(); });
             receiverThread.IsBackground = true;
@@ -32,10 +36,20 @@ namespace OtherworldsServer
 
         void ReceiveLoop()
         {
-            while (true)
+            while (run)
             {
                 byte[] buffer = new byte[1024];
-                socket.Receive(buffer);
+                try
+                {
+                    socket.Receive(buffer);
+                }
+                catch(SocketException e)
+                {
+                    server.Remove(this);
+                    server.Log(e.Message);
+                    run = false;
+                    return;
+                }
                 string message = Encoding.ASCII.GetString(buffer);
                 receiveQueue.Enqueue(message);
             }
@@ -43,13 +57,23 @@ namespace OtherworldsServer
 
         void SendLoop()
         {
-            while (true)
+            while (run)
             {
                 if (sendQueue.Count > 0)
                 {
                     string message = sendQueue.Dequeue();
                     byte[] buffer = Encoding.ASCII.GetBytes(message);
-                    socket.Send(buffer);
+                    try
+                    {
+                        socket.Send(buffer);
+                    }
+                    catch (SocketException e)
+                    {
+                        server.Remove(this);
+                        server.Log(e.Message);
+                        run = false;
+                        return;
+                    }
                 }
             }
         }
@@ -61,6 +85,7 @@ namespace OtherworldsServer
         Thread listenerThread;
         List<ClientHandler> clients;
         object clients_lock = new object();
+        public readonly Queue<string> queue = new Queue<string>();
 
         public GameServer(string host, int port)
         {
@@ -76,7 +101,7 @@ namespace OtherworldsServer
                 while (true)
                 {
                     Socket remote = server.Accept();
-                    ClientHandler client = new ClientHandler(remote);
+                    ClientHandler client = new ClientHandler(remote, this);
 
                     lock (clients_lock)
                     {
@@ -86,6 +111,14 @@ namespace OtherworldsServer
             });
             listenerThread.IsBackground = true;
             listenerThread.Start();
+        }
+
+        public void Remove(ClientHandler handler)
+        {
+            lock (clients_lock)
+            {
+                clients.Remove(handler);
+            }
         }
 
         public string GetOutput()
@@ -99,6 +132,10 @@ namespace OtherworldsServer
                         return handler.receiveQueue.Dequeue();
                     }
                 }
+            }
+            if (queue.Count > 0)
+            {
+                return queue.Dequeue();
             }
             return null;
         }
@@ -127,6 +164,11 @@ namespace OtherworldsServer
             {
                 clients.ForEach((s) => { Send(s.socket, message); });
             }
+        }
+
+        public void Log(string message)
+        {
+            queue.Enqueue(message);
         }
     }
 }

@@ -11,6 +11,7 @@ namespace OtherworldsServer
 {
     class TestClient: IOutput
     {
+        bool run = true;
         public Socket socket;
         public Thread receiverThread;
         public Thread senderThread;
@@ -32,16 +33,24 @@ namespace OtherworldsServer
             senderThread = new Thread(() => { SendLoop(); });
             senderThread.IsBackground = true;
             senderThread.Start();
-
         }
 
 
         void ReceiveLoop()
         {
-            while (true)
+            while (run)
             {
                 byte[] buffer = new byte[1024];
-                socket.Receive(buffer);
+                try
+                {
+                    socket.Receive(buffer);
+                }
+                catch (SocketException e)
+                {
+                    receiveQueue.Enqueue(e.Message);
+                    run = false;
+                    return;
+                }
                 string message = Encoding.ASCII.GetString(buffer);
                 receiveQueue.Enqueue(message);
             }
@@ -49,13 +58,22 @@ namespace OtherworldsServer
 
         void SendLoop()
         {
-            while (true)
+            while (run)
             {
                 if (sendQueue.Count > 0)
                 {
                     string message = sendQueue.Dequeue();
                     byte[] buffer = Encoding.ASCII.GetBytes(message);
-                    socket.Send(buffer);
+                    try
+                    {
+                        socket.Send(buffer);
+                    }
+                    catch (SocketException e)
+                    {
+                        receiveQueue.Enqueue(e.Message);
+                        run = false;
+                        return;
+                    }
                 }
             }
         }
