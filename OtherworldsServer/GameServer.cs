@@ -62,10 +62,8 @@ namespace OtherworldsServer
         List<ClientHandler> clients;
         object clients_lock = new object();
 
-        public GameServer()
+        public GameServer(string host, int port)
         {
-            string host = "127.0.0.1";
-            int port = 21000;
             IPAddress ip = IPAddress.Parse(host);
             IPEndPoint ipe = new IPEndPoint(ip, port);
             Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

@@ -17,11 +17,8 @@ namespace OtherworldsServer
         readonly Queue<string> sendQueue = new Queue<string>();
         readonly Queue<string> receiveQueue = new Queue<string>();
 
-        public TestClient()
+        public TestClient(string host, int port)
         {
-            string host = "127.0.0.1";
-            int port = 21000;
-
             IPAddress ip = IPAddress.Parse(host);
             IPEndPoint ipe = new IPEndPoint(ip, port);
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

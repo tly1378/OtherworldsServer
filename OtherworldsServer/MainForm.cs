@@ -17,6 +17,9 @@ namespace OtherworldsServer
         IOutput server;
         Thread receiverThread;
 
+        string serverHost = "127.0.0.1";
+        int serverPort = 21000;
+
         public MainForm()
         {
             CheckForIllegalCrossThreadCalls = false;
@@ -72,9 +75,9 @@ namespace OtherworldsServer
                 methodInfo.Invoke(this, cmds.Skip(1).ToArray());
         }
 
-        void LogError(string info)
+        void Log(string info)
         {
-            outputBox.Items.Add($"ERROR: {info}");
+            outputBox.Items.Add(info);
         }
 
         void ReceiveLoop()
@@ -97,12 +100,12 @@ namespace OtherworldsServer
             {
                 try
                 {
-                    server = new GameServer();
+                    server = new GameServer(serverHost, serverPort);
                     outputBox.Items.Add("服务器已开启");
                 }
                 catch
                 {
-                    LogError("服务器开启失败");
+                    Log("错误：服务器开启失败");
                 }
             }
             else
@@ -121,12 +124,12 @@ namespace OtherworldsServer
             {
                 try
                 {
-                    server = new TestClient();
+                    server = new TestClient(serverHost, serverPort);
                     outputBox.Items.Add("客户端已开启");
                 }
                 catch (Exception e)
                 {
-                    LogError($"客户端开启失败 {e.Message}");
+                    Log($"错误：客户端开启失败 {e.Message}");
                 }
             }
             else
@@ -145,6 +148,18 @@ namespace OtherworldsServer
             {
                 server.Send(message);
             }
+        }
+
+        public void SetIP(string serverHost, string serverPort)
+        {
+            this.serverHost = serverHost;
+            if(int.TryParse(serverPort, out int port))
+                this.serverPort = port;
+        }
+
+        public void ShowIP()
+        {
+            Log($"{serverHost}:{serverPort}");
         }
         #endregion 
     }
