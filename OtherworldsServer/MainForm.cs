@@ -17,8 +17,10 @@ namespace OtherworldsServer
         IOutput server;
         Thread receiverThread;
 
-        string serverHost = "127.0.0.1";
+        string serverHost = "192.168.0.3";
         int serverPort = 21000;
+        string clientHost = "49.189.121.181";
+        int clientPort = 21000;
 
         public MainForm()
         {
@@ -102,6 +104,13 @@ namespace OtherworldsServer
                 {
                     Log($"{message}");
                 }
+                else 
+                {
+                    if (message != null)
+                    {
+                        Log($"接收到一组空白字符串");
+                    }
+                }
             }
         }
         #endregion
@@ -137,7 +146,7 @@ namespace OtherworldsServer
                 try
                 {
                     Log("开始寻找服务器");
-                    server = new TestClient(serverHost, serverPort);
+                    server = new TestClient(clientHost, clientPort);
                     Log("客户端已开启");
                     receiverThread = new Thread(() => { ReceiveLoop(); });
                     receiverThread.IsBackground = true;
@@ -162,16 +171,35 @@ namespace OtherworldsServer
             }
         }
 
-        public void SetIP(string serverHost, string serverPort)
+        public void SendObject(string _object)
+        {
+            if(server is TestClient client)
+            {
+                List<string> test = new List<string>();
+                test.Add(_object);
+                client.Send(test);
+            }
+
+        }
+
+        public void SetServerIP(string serverHost, string serverPort)
         {
             this.serverHost = serverHost;
             if(int.TryParse(serverPort, out int port))
                 this.serverPort = port;
         }
 
+        public void SetClientIP(string clientHost, string clientPort)
+        {
+            this.clientHost = clientHost;
+            if (int.TryParse(clientPort, out int port))
+                this.clientPort = port;
+        }
+
         public void ShowIP()
         {
-            Log($"{serverHost}:{serverPort}");
+            Log($"服务端的部署IP：{serverHost}:{serverPort}");
+            Log($"客户端的目标IP：{clientHost}:{clientPort}");
         }
         #endregion 
     }

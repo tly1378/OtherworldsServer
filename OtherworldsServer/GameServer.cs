@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 namespace OtherworldsServer
 {
@@ -41,7 +43,29 @@ namespace OtherworldsServer
                 byte[] buffer = new byte[1024];
                 try
                 {
-                    socket.Receive(buffer);
+                    {
+
+                        socket.Receive(buffer);
+                        string message = Encoding.ASCII.GetString(buffer);
+                        receiveQueue.Enqueue($"解析为string[{string.IsNullOrWhiteSpace(message)}]>>>{message}");
+                        try
+                        {
+                            BinaryFormatter formatter = new BinaryFormatter();
+                            using (MemoryStream mStream = new MemoryStream())
+                            {
+                                mStream.Write(buffer, 0, 1024);
+                                mStream.Flush();
+                                mStream.Seek(0, SeekOrigin.Begin);
+                                object pack = formatter.Deserialize(mStream);
+                                receiveQueue.Enqueue($"解析为object>>>{pack}");
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            receiveQueue.Enqueue("无法识别的信息："+e.Message);
+                        }
+                        
+                    }
                 }
                 catch(SocketException e)
                 {
@@ -50,8 +74,6 @@ namespace OtherworldsServer
                     run = false;
                     return;
                 }
-                string message = Encoding.ASCII.GetString(buffer);
-                receiveQueue.Enqueue(message);
             }
         }
 

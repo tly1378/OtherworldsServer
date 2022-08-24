@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 namespace OtherworldsServer
 {
@@ -93,6 +95,23 @@ namespace OtherworldsServer
         public string GetOutput()
         {
             return Receive();
+        }
+
+        public void Send(object pack)
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            byte[] retbuff = new byte[1];
+            using (MemoryStream mStream = new MemoryStream())
+            {
+                formatter.Serialize(mStream, pack);
+                mStream.Flush();
+                socket.Send(mStream.GetBuffer(), (int)mStream.Length, SocketFlags.None);
+                socket.Receive(retbuff, 1, SocketFlags.OutOfBand);
+                if (retbuff[0] == 0)
+                {
+                    Send(pack);
+                }
+            }
         }
     }
 }
