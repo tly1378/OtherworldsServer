@@ -77,7 +77,7 @@ namespace OtherworldsServer
             this.Controls.Add(this.inputBox);
             this.Controls.Add(this.execute);
             this.Name = "MainForm";
-            this.Text = "Form1";
+            this.Text = "调试工具";
             this.ResumeLayout(false);
             this.PerformLayout();
 

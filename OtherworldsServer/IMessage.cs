@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace OtherworldsServer
 {
-    interface IOutput
+    interface IMessage
     {
-        string GetOutput();
-        void Send(string msg);
+        object GetObject();
+        void Send(object _object);
     }
 }

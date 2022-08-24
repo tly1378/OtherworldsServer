@@ -14,7 +14,7 @@ namespace OtherworldsServer
 {
     public partial class MainForm : Form
     {
-        IOutput server;
+        IMessage server;
         Thread receiverThread;
 
         string serverHost = "192.168.0.3";
@@ -62,7 +62,7 @@ namespace OtherworldsServer
         }
         #endregion
 
-        #region 
+        #region winform tool
         string GetParamNames(ParameterInfo[] paramInfos)
         {
             string names = "";
@@ -102,23 +102,23 @@ namespace OtherworldsServer
         {
             while (true)
             {
-                string message = server.GetOutput();
-                if (!string.IsNullOrWhiteSpace(message))
+                object _object = server.GetObject();
+                if (_object!=null)
                 {
-                    Log($"{message}");
-                }
-                else 
-                {
-                    if (message != null)
-                    {
-                        Log($"接收到一组空白字符串");
-                    }
+                    Log($"{_object}");
                 }
             }
         }
         #endregion
 
-        #region 
+        #region cmd
+        public void SetServerIP(string serverHost, string serverPort)
+        {
+            this.serverHost = serverHost;
+            if(int.TryParse(serverPort, out int port))
+                this.serverPort = port;
+        }
+
         public void StartServer()
         {
             if (server == null)
@@ -126,10 +126,12 @@ namespace OtherworldsServer
                 try
                 {
                     server = new GameServer(serverHost, serverPort);
-                    Log("服务器已开启");
                     receiverThread = new Thread(() => { ReceiveLoop(); });
                     receiverThread.IsBackground = true;
                     receiverThread.Start();
+
+                    Log("服务器已开启");
+                    Text = "服务器";
                 }
                 catch(Exception e)
                 {
@@ -142,18 +144,26 @@ namespace OtherworldsServer
             }
         }
 
+        public void SetClientIP(string clientHost, string clientPort)
+        {
+            this.clientHost = clientHost;
+            if (int.TryParse(clientPort, out int port))
+                this.clientPort = port;
+        }
+
         public void StartClient()
         {
             if (server == null)
             {
                 try
                 {
-                    Log("开始寻找服务器");
+                    Log("正在连接服务器……");
                     server = new TestClient(clientHost, clientPort);
-                    Log("客户端已开启");
                     receiverThread = new Thread(() => { ReceiveLoop(); });
                     receiverThread.IsBackground = true;
                     receiverThread.Start();
+                    Log("客户端已开启");
+                    Text = "客户端";
                 }
                 catch (Exception e)
                 {
@@ -166,37 +176,20 @@ namespace OtherworldsServer
             }
         }
 
-        public void Send(string message)
+        public void SendMessage(string message)
         {
             if (server != null)
             {
-                server.Send(message);
+                server.Send(new Message(message));
             }
         }
 
-        public void SendObject(string _object)
+        public void SendString(string text)
         {
-            if(server is TestClient client)
+            if (server != null)
             {
-                List<string> test = new List<string>();
-                test.Add(_object);
-                client.Send(test);
+                server.Send(text);
             }
-
-        }
-
-        public void SetServerIP(string serverHost, string serverPort)
-        {
-            this.serverHost = serverHost;
-            if(int.TryParse(serverPort, out int port))
-                this.serverPort = port;
-        }
-
-        public void SetClientIP(string clientHost, string clientPort)
-        {
-            this.clientHost = clientHost;
-            if (int.TryParse(clientPort, out int port))
-                this.clientPort = port;
         }
 
         public void ShowIP()

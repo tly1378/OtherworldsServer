@@ -11,103 +11,12 @@ using System.IO;
 
 namespace OtherworldsServer
 {
-    class ClientHandler
+    class GameServer : IMessage
     {
-        GameServer server;
-        bool run = true;
-
-        public Socket socket;
-        public Thread receiverThread;
-        public Thread senderThread;
-        public readonly Queue<string> sendQueue = new Queue<string>();
-        public readonly Queue<string> receiveQueue = new Queue<string>();
-
-        public ClientHandler(Socket socket, GameServer server)
-        {
-            this.socket = socket;
-            this.server = server;
-
-            receiverThread = new Thread(() => { ReceiveLoop(); });
-            receiverThread.IsBackground = true;
-            receiverThread.Start();
-
-            senderThread = new Thread(() => { SendLoop(); });
-            senderThread.IsBackground = true;
-            senderThread.Start();
-        }
-
-        void ReceiveLoop()
-        {
-            while (run)
-            {
-                byte[] buffer = new byte[1024];
-                try
-                {
-                    {
-
-                        socket.Receive(buffer);
-                        string message = Encoding.ASCII.GetString(buffer);
-                        receiveQueue.Enqueue($"解析为string[{string.IsNullOrWhiteSpace(message)}]>>>{message}");
-                        try
-                        {
-                            BinaryFormatter formatter = new BinaryFormatter();
-                            using (MemoryStream mStream = new MemoryStream())
-                            {
-                                mStream.Write(buffer, 0, 1024);
-                                mStream.Flush();
-                                mStream.Seek(0, SeekOrigin.Begin);
-                                object pack = formatter.Deserialize(mStream);
-                                receiveQueue.Enqueue($"解析为object>>>{pack}");
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            receiveQueue.Enqueue("无法识别的信息："+e.Message);
-                        }
-                        
-                    }
-                }
-                catch(SocketException e)
-                {
-                    server.Remove(this);
-                    server.Log(e.Message);
-                    run = false;
-                    return;
-                }
-            }
-        }
-
-        void SendLoop()
-        {
-            while (run)
-            {
-                if (sendQueue.Count > 0)
-                {
-                    string message = sendQueue.Dequeue();
-                    byte[] buffer = Encoding.ASCII.GetBytes(message);
-                    try
-                    {
-                        socket.Send(buffer);
-                    }
-                    catch (SocketException e)
-                    {
-                        server.Remove(this);
-                        server.Log(e.Message);
-                        run = false;
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
-    class GameServer : IOutput
-    {
-
         Thread listenerThread;
         List<ClientHandler> clients;
         object clients_lock = new object();
-        public readonly Queue<string> queue = new Queue<string>();
+        public readonly Queue<string> logQueue = new Queue<string>();
 
         public GameServer(string host, int port)
         {
@@ -122,17 +31,22 @@ namespace OtherworldsServer
             { 
                 while (true)
                 {
-                    Socket remote = server.Accept();
-                    ClientHandler client = new ClientHandler(remote, this);
+                    Socket client = server.Accept();
+                    ClientHandler handler = new ClientHandler(client);
 
                     lock (clients_lock)
                     {
-                        clients.Add(client);
+                        clients.Add(handler);
                     }
                 }
             });
             listenerThread.IsBackground = true;
             listenerThread.Start();
+        }
+
+        public void Log(string message)
+        {
+            logQueue.Enqueue(message);
         }
 
         public void Remove(ClientHandler handler)
@@ -143,7 +57,27 @@ namespace OtherworldsServer
             }
         }
 
-        public string GetOutput()
+        //public void Send(Socket socket, string message)
+        //{
+        //    lock (clients_lock)
+        //    {
+        //        ClientHandler client = clients.Find((s) => { return s.socket == socket; });
+        //        client.sendQueue.Enqueue(message);
+        //    }
+        //}
+
+        public void Send(object _object)
+        {
+            lock (clients_lock)
+            {
+                foreach (ClientHandler handler in clients)
+                {
+                    handler.sendQueue.Enqueue(_object);
+                }
+            }
+        }
+
+        public object GetObject()
         {
             lock (clients_lock)
             {
@@ -151,46 +85,24 @@ namespace OtherworldsServer
                 {
                     if (handler.receiveQueue.Count > 0)
                     {
-                        return handler.receiveQueue.Dequeue();
+                        object output = handler.receiveQueue.Dequeue();
+                        if(output is Message msg)
+                        {
+                            return msg;
+                        }
+                        else
+                        {
+                            Log(output.ToString());
+                        }
                     }
                 }
             }
-            if (queue.Count > 0)
+
+            if (logQueue.Count > 0)
             {
-                return queue.Dequeue();
+                return new Message(logQueue.Dequeue());
             }
             return null;
-        }
-
-        public string Receive(Socket socket)
-        {
-            lock (clients_lock)
-            {
-                var client = clients.Find((s) => { return s.socket == socket; });
-                return client.receiveQueue.Dequeue();
-            }
-        }
-
-        public void Send(Socket socket, string message)
-        {
-            lock (clients_lock)
-            {
-                var client = clients.Find((s) => { return s.socket == socket; });
-                client.sendQueue.Enqueue(message);
-            }
-        }
-
-        public void Send(string message)
-        {
-            lock (clients_lock)
-            {
-                clients.ForEach((s) => { Send(s.socket, message); });
-            }
-        }
-
-        public void Log(string message)
-        {
-            queue.Enqueue(message);
         }
     }
 }

@@ -11,21 +11,21 @@ using System.IO;
 
 namespace OtherworldsServer
 {
-    class TestClient: IOutput
+    class TestClient: IMessage
     {
         bool run = true;
-        public Socket socket;
+        public Socket server;
         public Thread receiverThread;
         public Thread senderThread;
-        readonly Queue<string> sendQueue = new Queue<string>();
-        readonly Queue<string> receiveQueue = new Queue<string>();
+        readonly Queue<object> sendQueue = new Queue<object>();
+        readonly Queue<object> receiveQueue = new Queue<object>();
 
         public TestClient(string host, int port)
         {
             IPAddress ip = IPAddress.Parse(host);
             IPEndPoint ipe = new IPEndPoint(ip, port);
-            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socket.Connect(ipe);
+            server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            server.Connect(ipe);
 
             receiverThread = new Thread(() => { ReceiveLoop(); });
             receiverThread.IsBackground = true;
@@ -36,42 +36,20 @@ namespace OtherworldsServer
             senderThread.Start();
         }
 
-
-        void ReceiveLoop()
-        {
-            while (run)
-            {
-                byte[] buffer = new byte[1024];
-                try
-                {
-                    socket.Receive(buffer);
-                }
-                catch (SocketException e)
-                {
-                    receiveQueue.Enqueue(e.Message);
-                    run = false;
-                    return;
-                }
-                string message = Encoding.ASCII.GetString(buffer);
-                receiveQueue.Enqueue(message);
-            }
-        }
-
         void SendLoop()
         {
             while (run)
             {
                 if (sendQueue.Count > 0)
                 {
-                    string message = sendQueue.Dequeue();
-                    byte[] buffer = Encoding.ASCII.GetBytes(message);
                     try
                     {
-                        socket.Send(buffer);
+                        object _object = sendQueue.Dequeue();
+                        TCPTool.Send(server, _object);
                     }
                     catch (SocketException e)
                     {
-                        receiveQueue.Enqueue(e.Message);
+                        receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
                         run = false;
                         return;
                     }
@@ -79,39 +57,35 @@ namespace OtherworldsServer
             }
         }
 
-        public string Receive()
+        void ReceiveLoop()
+        {
+            while (run)
+            {
+                try
+                {
+                    object _object = TCPTool.Receive(server);
+                    receiveQueue.Enqueue(_object);
+                }
+                catch (SocketException e)
+                {
+                    receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
+                    run = false;
+                    return;
+                }
+            }
+        }
+
+        public void Send(object _object)
+        {
+            sendQueue.Enqueue(_object);
+        }
+
+        public object GetObject()
         {
             if (receiveQueue.Count > 0)
                 return receiveQueue.Dequeue();
             else
                 return null;
-        }
-
-        public void Send(string message)
-        {
-            sendQueue.Enqueue(message);
-        }
-
-        public string GetOutput()
-        {
-            return Receive();
-        }
-
-        public void Send(object pack)
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            byte[] retbuff = new byte[1];
-            using (MemoryStream mStream = new MemoryStream())
-            {
-                formatter.Serialize(mStream, pack);
-                mStream.Flush();
-                socket.Send(mStream.GetBuffer(), (int)mStream.Length, SocketFlags.None);
-                socket.Receive(retbuff, 1, SocketFlags.OutOfBand);
-                if (retbuff[0] == 0)
-                {
-                    Send(pack);
-                }
-            }
         }
     }
 }
