@@ -54,8 +54,11 @@ namespace OtherworldsServer
         private void outputBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             string text = outputBox.SelectedItem?.ToString();
-            if(!string.IsNullOrWhiteSpace(text))
+            if (!string.IsNullOrWhiteSpace(text))
+            {
                 Clipboard.SetText(text);
+                inputBox.Text = text;
+            }
         }
         #endregion
 
