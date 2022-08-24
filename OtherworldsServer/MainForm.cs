@@ -25,22 +25,22 @@ namespace OtherworldsServer
             CheckForIllegalCrossThreadCalls = false;
             InitializeComponent();
             MethodInfo[] info = GetType().GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public);
-            outputBox.Items.Add("Help List:");
+            Log("Help List:");
             for (int i = 0; i < info.Length; i++)
             {
                 var md = info[i];
                 string mothodName = md.Name;
                 ParameterInfo[] paramInfos = md.GetParameters();
-                outputBox.Items.Add($"\\{mothodName}{GetParamNames(paramInfos)}");
+                Log($"\\{mothodName}{GetParamNames(paramInfos)}");
             }
-            outputBox.Items.Add("");
+            Log("");
         }
 
         #region winform component
         void execute_Click(object sender, EventArgs e)
         {
             if(!string.IsNullOrWhiteSpace(inputBox.Text))
-                outputBox.Items.Add(inputBox.Text);
+                Log(inputBox.Text);
 
             if (inputBox.Text.StartsWith("\\"))
             {
@@ -71,8 +71,11 @@ namespace OtherworldsServer
         void Execute(params string[] cmds)
         {
             var methodInfo = GetType().GetMethod(cmds[0]);
-            if(methodInfo!=null)
-                methodInfo.Invoke(this, cmds.Skip(1).ToArray());
+            if (methodInfo != null)
+            {
+                Thread thread = new Thread(()=> {methodInfo.Invoke(this, cmds.Skip(1).ToArray()); });
+                thread.Start();
+            }
         }
 
         void Log(string info)
@@ -87,7 +90,7 @@ namespace OtherworldsServer
                 string message = server.GetOutput();
                 if (!string.IsNullOrWhiteSpace(message))
                 {
-                    outputBox.Items.Add($"{message}");//wuxiao
+                    Log($"{message}");
                 }
             }
         }
@@ -101,7 +104,10 @@ namespace OtherworldsServer
                 try
                 {
                     server = new GameServer(serverHost, serverPort);
-                    outputBox.Items.Add("服务器已开启");
+                    Log("服务器已开启");
+                    receiverThread = new Thread(() => { ReceiveLoop(); });
+                    receiverThread.IsBackground = true;
+                    receiverThread.Start();
                 }
                 catch
                 {
@@ -110,12 +116,8 @@ namespace OtherworldsServer
             }
             else
             {
-                outputBox.Items.Add("已有正在运行的服务");
+                Log("已有正在运行的服务");
             }
-
-            receiverThread = new Thread(() => { ReceiveLoop(); });
-            receiverThread.IsBackground = true;
-            receiverThread.Start();
         }
 
         public void StartClient()
@@ -124,8 +126,12 @@ namespace OtherworldsServer
             {
                 try
                 {
+                    Log("开始寻找服务器");
                     server = new TestClient(serverHost, serverPort);
-                    outputBox.Items.Add("客户端已开启");
+                    Log("客户端已开启");
+                    receiverThread = new Thread(() => { ReceiveLoop(); });
+                    receiverThread.IsBackground = true;
+                    receiverThread.Start();
                 }
                 catch (Exception e)
                 {
@@ -134,12 +140,8 @@ namespace OtherworldsServer
             }
             else
             {
-                outputBox.Items.Add("已有正在运行的服务");
+                Log("已有正在运行的服务");
             }
-
-            receiverThread = new Thread(() => { ReceiveLoop(); });
-            receiverThread.IsBackground = true;
-            receiverThread.Start();
         }
 
         public void Send(string message)

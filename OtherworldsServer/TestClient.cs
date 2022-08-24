@@ -25,7 +25,6 @@ namespace OtherworldsServer
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             socket.Connect(ipe);
 
-
             receiverThread = new Thread(() => { ReceiveLoop(); });
             receiverThread.IsBackground = true;
             receiverThread.Start();
