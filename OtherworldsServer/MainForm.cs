@@ -73,7 +73,17 @@ namespace OtherworldsServer
             var methodInfo = GetType().GetMethod(cmds[0]);
             if (methodInfo != null)
             {
-                Thread thread = new Thread(()=> {methodInfo.Invoke(this, cmds.Skip(1).ToArray()); });
+                Thread thread = new Thread(()=> 
+                {
+                    try
+                    {
+                        methodInfo.Invoke(this, cmds.Skip(1).ToArray()); 
+                    }
+                    catch(Exception e)
+                    {
+                        Log($"指令调用失败：{e.Message}");
+                    }
+                });
                 thread.Start();
             }
         }
@@ -109,9 +119,9 @@ namespace OtherworldsServer
                     receiverThread.IsBackground = true;
                     receiverThread.Start();
                 }
-                catch
+                catch(Exception e)
                 {
-                    Log("错误：服务器开启失败");
+                    Log(e.Message);
                 }
             }
             else
