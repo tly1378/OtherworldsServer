@@ -105,7 +105,14 @@ namespace OtherworldsServer
                 object _object = server.GetObject();
                 if (_object != null)
                 {
-                    Log($"{_object.GetType()}: {_object}");
+                    if(_object is Message msg)
+                    {
+                        Log("Message!!!");
+                    }
+                    else
+                    {
+                        Log($"{_object.GetType()}: {_object}");
+                    }
                 }
             }
         }
