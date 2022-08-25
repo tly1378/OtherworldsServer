@@ -103,7 +103,7 @@ namespace OtherworldsServer
             while (true)
             {
                 object _object = server.GetObject();
-                if (_object!=null)
+                if (_object != null)
                 {
                     Log($"{_object}");
                 }

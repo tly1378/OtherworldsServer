@@ -49,7 +49,7 @@ namespace OtherworldsServer
                     }
                     catch (SocketException e)
                     {
-                        receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
+                        Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                         run = false;
                         return;
                     }
@@ -68,7 +68,7 @@ namespace OtherworldsServer
                 }
                 catch (SocketException e)
                 {
-                    receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
+                    Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     run = false;
                     return;
                 }
@@ -86,6 +86,11 @@ namespace OtherworldsServer
                 return receiveQueue.Dequeue();
             else
                 return null;
+        }
+
+        void Log(object message)
+        {
+            receiveQueue.Enqueue(message.ToString());
         }
     }
 }

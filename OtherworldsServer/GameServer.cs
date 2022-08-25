@@ -38,15 +38,17 @@ namespace OtherworldsServer
                     {
                         clients.Add(handler);
                     }
+
+                    Log(client.RemoteEndPoint as IPEndPoint);
                 }
             });
             listenerThread.IsBackground = true;
             listenerThread.Start();
         }
 
-        public void Log(string message)
+        public void Log(object message)
         {
-            logQueue.Enqueue(message);
+            logQueue.Enqueue(message.ToString());
         }
 
         public void Remove(ClientHandler handler)
@@ -85,15 +87,7 @@ namespace OtherworldsServer
                 {
                     if (handler.receiveQueue.Count > 0)
                     {
-                        object output = handler.receiveQueue.Dequeue();
-                        if(output is Message msg)
-                        {
-                            return msg;
-                        }
-                        else
-                        {
-                            Log(output.ToString());
-                        }
+                        return handler.receiveQueue.Dequeue();
                     }
                 }
             }

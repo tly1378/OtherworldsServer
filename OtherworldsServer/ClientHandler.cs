@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
@@ -44,7 +45,7 @@ namespace OtherworldsServer
                 }
                 catch(Exception e)
                 {
-                    receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
+                    Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     run = false;
                 }
             }
@@ -63,11 +64,16 @@ namespace OtherworldsServer
                     }
                     catch(Exception e)
                     {
-                        receiveQueue.Enqueue(new Message(e.Message, Message.Type.Disconnect));
+                        Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                         run = false;
                     }
                 }
             }
+        }
+
+        void Log(object message)
+        {
+            receiveQueue.Enqueue(message.ToString());
         }
     }
 }
