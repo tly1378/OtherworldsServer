@@ -107,7 +107,11 @@ namespace OtherworldsServer
                 {
                     if(_object is Message msg)
                     {
-                        Log("Message!!!");
+                        Log($"Message!!! {msg.index}");
+                    }
+                    else if (_object is string text)
+                    {
+                        Log($"String!!! {text.Contains('a')} {text} {text.IndexOf('a')}");
                     }
                     else
                     {
