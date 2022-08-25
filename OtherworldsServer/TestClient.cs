@@ -49,11 +49,11 @@ namespace OtherworldsServer
                     }
                     catch (InsufficientBufferingException e)
                     {
-                        Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                        receiveQueue.Enqueue(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     }
                     catch (SocketException e)
                     {
-                        Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                        receiveQueue.Enqueue(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                         Stop();
                         return;
                     }
@@ -68,11 +68,11 @@ namespace OtherworldsServer
                 try
                 {
                     object _object = TCPTool.Receive(server);
-                    Log(_object);
+                    receiveQueue.Enqueue(_object);
                 }
                 catch (SocketException e)
                 {
-                    Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                    receiveQueue.Enqueue(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     Stop();
                 }
             }
@@ -89,11 +89,6 @@ namespace OtherworldsServer
                 return receiveQueue.Dequeue();
             else
                 return null;
-        }
-
-        void Log(object message)
-        {
-            receiveQueue.Enqueue(message.ToString());
         }
 
         public void SendTo(string id, object message)

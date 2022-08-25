@@ -52,7 +52,7 @@ namespace OtherworldsServer
                 }
                 catch(Exception e)
                 {
-                    Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                    receiveQueue.Enqueue(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     Stop();
                 }
             }
@@ -71,20 +71,15 @@ namespace OtherworldsServer
                     }
                     catch (InsufficientBufferingException e)
                     {
-                        Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                        receiveQueue.Enqueue(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                     }
                     catch(SocketException e)
                     {
-                        Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                        receiveQueue.Enqueue(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
                         Stop();
                     }
                 }
             }
-        }
-
-        void Log(object message)
-        {
-            receiveQueue.Enqueue(message.ToString());
         }
 
         public void Stop()

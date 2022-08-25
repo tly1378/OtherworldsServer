@@ -27,7 +27,7 @@ namespace OtherworldsServer
 
         public override string ToString()
         {
-            return $"[{index}][Message.{type}] {message}";
+            return $"[{index}][{type}]: {message}";
         }
     }
 }
