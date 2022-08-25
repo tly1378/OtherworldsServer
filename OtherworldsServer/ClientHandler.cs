@@ -41,6 +41,11 @@ namespace OtherworldsServer
             callbackAction = action;
         }
 
+        public void SetId(string id)
+        {
+            throw new NotImplementedException();
+        }
+
         void ReceiveLoop()
         {
             while (run)

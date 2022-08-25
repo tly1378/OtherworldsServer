@@ -105,7 +105,14 @@ namespace OtherworldsServer
                 object _object = server.GetObject();
                 if (_object != null)
                 {
-                    Log($"[{_object.GetType()}]>>> {_object}");
+                    if(_object is string)
+                    {
+                        Log($"{_object}");
+                    }
+                    else
+                    {
+                        Log($"[{_object.GetType()}]>>> {_object}");
+                    }
                 }
             }
         }
@@ -189,7 +196,7 @@ namespace OtherworldsServer
         {
             if (server != null)
             {
-                Message message = new Message(content);
+                Message message = new Message(content, Message.Type.Content);
                 message.index = index++;
                 server.Send(message);
             }
@@ -207,6 +214,7 @@ namespace OtherworldsServer
         {
             Log($"服务端的部署IP：{serverHost}:{serverPort}");
             Log($"客户端的目标IP：{clientHost}:{clientPort}");
+            Log($"客户端的昵称：{(server as TestClient)?.ID}");
         }
 
         public void Clear()
@@ -220,6 +228,14 @@ namespace OtherworldsServer
             server = null;
             Log("服务已终止");
             Text = "调试工具";
+        }
+
+        public void SetId(string id)
+        {
+            if (server is TestClient client)
+            {
+                client.ID = id;
+            }
         }
         #endregion 
     }

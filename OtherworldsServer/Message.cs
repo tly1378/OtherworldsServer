@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,7 +13,8 @@ namespace OtherworldsServer
         public enum Type
         {
             Disconnect,
-            Content
+            Content,
+            Command
         }
 
         public int index;
@@ -27,7 +29,7 @@ namespace OtherworldsServer
 
         public override string ToString()
         {
-            return $"[{index}][{type}]: {message}";
+            return $"[{type}]: {message}";
         }
     }
 }

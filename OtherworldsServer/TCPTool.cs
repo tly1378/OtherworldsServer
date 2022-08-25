@@ -34,6 +34,7 @@ namespace OtherworldsServer
                 }
                 buffer = mStream.GetBuffer();
                 socket.Send(buffer, (int)mStream.Length, SocketFlags.None);
+                Console.WriteLine($"数据大小为{mStream.Length}字节");
             }
         }
 

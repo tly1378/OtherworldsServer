@@ -16,8 +16,8 @@ namespace OtherworldsServer
         bool run = true;
         Thread listenerThread;
         Thread handerThread;
-        List<ClientHandler> clients;
         object clients_lock = new object();
+        Dictionary<string, ClientHandler> clients = new Dictionary<string, ClientHandler>();
         public readonly Queue<object> outputQueue = new Queue<object>();
 
         public GameServer(string host, int port)
@@ -28,7 +28,6 @@ namespace OtherworldsServer
             server.Bind(ipe);
             server.Listen(0);
 
-            clients = new List<ClientHandler>();
             listenerThread = new Thread(()=> 
             { 
                 while (run)
@@ -37,7 +36,7 @@ namespace OtherworldsServer
                     ClientHandler handler = new ClientHandler(client);
                     lock (clients_lock)
                     {
-                        clients.Add(handler);
+                        clients.Add((client.RemoteEndPoint as IPEndPoint).ToString(), handler);
                     }
                     handler.SetCallback(()=> { Remove(handler); });
                     outputQueue.Enqueue(client.RemoteEndPoint as IPEndPoint);
@@ -52,10 +51,18 @@ namespace OtherworldsServer
                 {
                     lock (clients_lock)
                     {
-                        for (int i = 0; i < clients.Count; i++)
+                        foreach(string id in clients.Keys)
                         {
-                            object receive = clients[i].GetNextOutput();
-                            if (receive != null)
+                            object receive = clients[id].GetNextOutput();
+                            if(receive is Message msg && msg.type == Message.Type.Command)
+                            {
+                                Command(id, msg);
+                            }
+                            else if (receive is Message msg1 && msg1.type == Message.Type.Content)
+                            {
+                                outputQueue.Enqueue($"{id} {msg1.message}");
+                            }
+                            else if (receive != null)
                             {
                                 outputQueue.Enqueue(receive);
                             }
@@ -67,30 +74,37 @@ namespace OtherworldsServer
             handerThread.Start();
         }
 
+        public void Remove(string id)
+        {
+            lock (clients_lock)
+            {
+                clients.Remove(id);
+            }
+        }
+
         public void Remove(ClientHandler handler)
         {
             lock (clients_lock)
             {
-                clients.Remove(handler);
+                List<KeyValuePair<string, ClientHandler>> keyValuePairs = clients.ToList();
+                foreach(KeyValuePair<string, ClientHandler> keyValuePair in keyValuePairs)
+                {
+                    if(handler== keyValuePair.Value)
+                    {
+                        clients.Remove(keyValuePair.Key);
+                    }
+                }
             }
         }
-
-        //public void Send(Socket socket, string message)
-        //{
-        //    lock (clients_lock)
-        //    {
-        //        ClientHandler client = clients.Find((s) => { return s.socket == socket; });
-        //        client.sendQueue.Enqueue(message);
-        //    }
-        //}
 
         public void Send(object _object)
         {
             lock (clients_lock)
             {
-                foreach (ClientHandler handler in clients)
+                List<string> ids = clients.Keys.ToList();
+                foreach (string id in ids)
                 {
-                    handler.sendQueue.Enqueue(_object);
+                    clients[id].sendQueue.Enqueue(_object);
                 }
             }
         }
@@ -113,13 +127,49 @@ namespace OtherworldsServer
         {
             lock (clients_lock)
             {
-                foreach (ClientHandler handler in clients)
+                foreach (KeyValuePair<string, ClientHandler> keyValuePair in clients)
                 {
-                    handler.Stop();
+                    keyValuePair.Value.Stop();
                 }
             }
             clients.Clear();
             run = false;
         }
+
+        #region cmds
+        private void Command(string id, Message msg)
+        {
+            string[] cmds = msg.message.Split();
+            var methodInfo = GetType().GetMethod(cmds[0]);
+            if (methodInfo != null)
+            {
+                Thread thread = new Thread(() =>
+                {
+                    try
+                    {
+                        string[] parameters = new string[] {id};
+                        parameters = parameters.Concat(cmds.Skip(1)).ToArray();
+                        methodInfo.Invoke(this, parameters);
+                    }
+                    catch (Exception e)
+                    {
+                        outputQueue.Enqueue($"指令{msg.message}调用失败：{e.Message}");
+                    }
+                });
+                thread.Start();
+            }
+        }
+
+        public void SetId(string oldId, string newId)
+        {
+            if (oldId == newId) return;
+            ClientHandler handler = clients[oldId];
+            lock (clients_lock)
+            {
+                clients.Add(newId, handler);
+                clients.Remove(oldId);
+            }
+        }
+        #endregion
     }
 }

@@ -14,18 +14,39 @@ namespace OtherworldsServer
     class TestClient: IServer
     {
         bool run = true;
+
         public Socket server;
         public Thread receiverThread;
         public Thread senderThread;
+
         readonly Queue<object> sendQueue = new Queue<object>();
         readonly Queue<object> receiveQueue = new Queue<object>();
 
-        public TestClient(string host, int port)
+        private string id;
+        public string ID 
+        {
+            get
+            {
+                return id;
+            }
+            set
+            {
+                id = value;
+                Send(new Message($"{nameof(ClientHandler.SetId)} {id}", Message.Type.Command));
+            } 
+        }
+
+        public TestClient(string host, int port, string id = null)
         {
             IPAddress ip = IPAddress.Parse(host);
             IPEndPoint ipe = new IPEndPoint(ip, port);
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             server.Connect(ipe);
+
+            if (id == null)
+                ID = (server.RemoteEndPoint as IPEndPoint).ToString();
+            else
+                ID = id;
 
             receiverThread = new Thread(() => { ReceiveLoop(); });
             receiverThread.IsBackground = true;
