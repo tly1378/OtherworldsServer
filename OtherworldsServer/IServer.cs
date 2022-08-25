@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace OtherworldsServer
 {
-    interface IMessage
+    interface IServer
     {
         object GetObject();
         void Send(object _object);
+        void SendTo(string id, object message);
+        void Stop();
     }
 }

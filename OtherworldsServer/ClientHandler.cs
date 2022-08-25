@@ -21,6 +21,7 @@ namespace OtherworldsServer
         public readonly Queue<object> sendQueue = new Queue<object>();
         public readonly Queue<object> receiveQueue = new Queue<object>();
 
+
         public ClientHandler(Socket socket)
         {
             this.socket = socket;
@@ -32,6 +33,12 @@ namespace OtherworldsServer
             senderThread = new Thread(() => { SendLoop(); });
             senderThread.IsBackground = true;
             senderThread.Start();
+        }
+
+        Action callbackAction;
+        public void SetCallback(Action action)
+        {
+            callbackAction = action;
         }
 
         void ReceiveLoop()
@@ -46,7 +53,7 @@ namespace OtherworldsServer
                 catch(Exception e)
                 {
                     Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
-                    run = false;
+                    Stop();
                 }
             }
         }
@@ -62,10 +69,14 @@ namespace OtherworldsServer
                         object _object = sendQueue.Dequeue();
                         TCPTool.Send(socket, _object);
                     }
-                    catch(Exception e)
+                    catch (InsufficientBufferingException e)
                     {
                         Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
-                        run = false;
+                    }
+                    catch(SocketException e)
+                    {
+                        Log(new Message($"{socket.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                        Stop();
                     }
                 }
             }
@@ -74,6 +85,21 @@ namespace OtherworldsServer
         void Log(object message)
         {
             receiveQueue.Enqueue(message.ToString());
+        }
+
+        public void Stop()
+        {
+            run = false;
+            TCPTool.Close(socket);
+            callbackAction();
+        }
+
+        public object GetNextOutput()
+        {
+            if (receiveQueue.Count > 0)
+                return receiveQueue.Dequeue();
+            else
+                return null;
         }
     }
 }

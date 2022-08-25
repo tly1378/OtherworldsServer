@@ -11,12 +11,14 @@ using System.IO;
 
 namespace OtherworldsServer
 {
-    class GameServer : IMessage
+    class GameServer : IServer
     {
+        bool run = true;
         Thread listenerThread;
+        Thread handerThread;
         List<ClientHandler> clients;
         object clients_lock = new object();
-        public readonly Queue<string> logQueue = new Queue<string>();
+        public readonly Queue<object> outputQueue = new Queue<object>();
 
         public GameServer(string host, int port)
         {
@@ -29,26 +31,40 @@ namespace OtherworldsServer
             clients = new List<ClientHandler>();
             listenerThread = new Thread(()=> 
             { 
-                while (true)
+                while (run)
                 {
                     Socket client = server.Accept();
                     ClientHandler handler = new ClientHandler(client);
-
                     lock (clients_lock)
                     {
                         clients.Add(handler);
                     }
-
-                    Log(client.RemoteEndPoint as IPEndPoint);
+                    handler.SetCallback(()=> { Remove(handler); });
+                    outputQueue.Enqueue(client.RemoteEndPoint as IPEndPoint);
                 }
             });
             listenerThread.IsBackground = true;
             listenerThread.Start();
-        }
 
-        public void Log(object message)
-        {
-            logQueue.Enqueue(message.ToString());
+            handerThread = new Thread(() =>
+            {
+                while (run)
+                {
+                    lock (clients_lock)
+                    {
+                        for (int i = 0; i < clients.Count; i++)
+                        {
+                            object receive = clients[i].GetNextOutput();
+                            if (receive != null)
+                            {
+                                outputQueue.Enqueue(receive);
+                            }
+                        }
+                    }
+                }
+            });
+            handerThread.IsBackground = true;
+            handerThread.Start();
         }
 
         public void Remove(ClientHandler handler)
@@ -81,22 +97,29 @@ namespace OtherworldsServer
 
         public object GetObject()
         {
-            lock (clients_lock)
+            if (outputQueue.Count > 0)
             {
-                foreach(ClientHandler handler in clients)
-                {
-                    if (handler.receiveQueue.Count > 0)
-                    {
-                        return handler.receiveQueue.Dequeue();
-                    }
-                }
-            }
-
-            if (logQueue.Count > 0)
-            {
-                return new Message(logQueue.Dequeue());
+                return outputQueue.Dequeue();
             }
             return null;
+        }
+
+        public void SendTo(string id, object message)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Stop()
+        {
+            lock (clients_lock)
+            {
+                foreach (ClientHandler handler in clients)
+                {
+                    handler.Stop();
+                }
+            }
+            clients.Clear();
+            run = false;
         }
     }
 }

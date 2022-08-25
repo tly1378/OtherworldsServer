@@ -9,33 +9,60 @@ using System.Threading.Tasks;
 
 namespace OtherworldsServer
 {
+    class InsufficientBufferingException: Exception
+    {
+        public InsufficientBufferingException(string message) : base(message) { }
+    }
+
     static class TCPTool
     {
+        public const int BUFFERSIZE = 1024;
+
         public static void Send(Socket socket, object pack)
         {
-            Console.WriteLine(pack.GetType());
-
             BinaryFormatter formatter = new BinaryFormatter();
             using (MemoryStream mStream = new MemoryStream())
             {
                 formatter.Serialize(mStream, pack);
                 mStream.Flush();
-                socket.Send(mStream.GetBuffer(), (int)mStream.Length, SocketFlags.None);
+                byte[] buffer;
+                if (mStream.Length > BUFFERSIZE)
+                {
+                    buffer = Encoding.UTF8.GetBytes($"{1}");
+                    socket.Send(buffer, buffer.Length, SocketFlags.None);
+                    throw new InsufficientBufferingException($"数据大小为{mStream.Length}字节；超过了上限{BUFFERSIZE}字节");
+                }
+                buffer = mStream.GetBuffer();
+                socket.Send(buffer, (int)mStream.Length, SocketFlags.None);
             }
         }
 
         public static object Receive(Socket socket)
         {
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[BUFFERSIZE];
             socket.Receive(buffer);
             using (MemoryStream mStream = new MemoryStream())
             {
-                mStream.Write(buffer, 0, 1024);
+                mStream.Write(buffer, 0, BUFFERSIZE);
                 mStream.Flush();
                 mStream.Seek(0, SeekOrigin.Begin);
                 BinaryFormatter formatter = new BinaryFormatter();
-                return formatter.Deserialize(mStream);
+
+                try
+                {
+                    return formatter.Deserialize(mStream);
+                }
+                catch(Exception e)
+                {
+                    return e.Message;
+                }
             }
+        }
+
+        public static void Close(Socket socket)
+        {
+            socket.Shutdown(SocketShutdown.Both);
+            socket.Close();
         }
     }
 }

@@ -11,7 +11,7 @@ using System.IO;
 
 namespace OtherworldsServer
 {
-    class TestClient: IMessage
+    class TestClient: IServer
     {
         bool run = true;
         public Socket server;
@@ -47,10 +47,14 @@ namespace OtherworldsServer
                         object _object = sendQueue.Dequeue();
                         TCPTool.Send(server, _object);
                     }
+                    catch (InsufficientBufferingException e)
+                    {
+                        Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
+                    }
                     catch (SocketException e)
                     {
                         Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
-                        run = false;
+                        Stop();
                         return;
                     }
                 }
@@ -64,13 +68,12 @@ namespace OtherworldsServer
                 try
                 {
                     object _object = TCPTool.Receive(server);
-                    receiveQueue.Enqueue(_object);
+                    Log(_object);
                 }
                 catch (SocketException e)
                 {
                     Log(new Message($"{server.LocalEndPoint as IPEndPoint} {e.Message}", Message.Type.Disconnect));
-                    run = false;
-                    return;
+                    Stop();
                 }
             }
         }
@@ -91,6 +94,17 @@ namespace OtherworldsServer
         void Log(object message)
         {
             receiveQueue.Enqueue(message.ToString());
+        }
+
+        public void SendTo(string id, object message)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Stop()
+        {
+            run = false;
+            TCPTool.Close(server);
         }
     }
 }

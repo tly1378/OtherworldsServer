@@ -14,7 +14,7 @@ namespace OtherworldsServer
 {
     public partial class MainForm : Form
     {
-        IMessage server;
+        IServer server;
         Thread receiverThread;
 
         string serverHost = "192.168.0.3";
@@ -100,12 +100,12 @@ namespace OtherworldsServer
 
         void ReceiveLoop()
         {
-            while (true)
+            while (server != null)
             {
                 object _object = server.GetObject();
                 if (_object != null)
                 {
-                    Log($"{_object}");
+                    Log($"{_object.GetType()}: {_object}");
                 }
             }
         }
@@ -176,14 +176,6 @@ namespace OtherworldsServer
             }
         }
 
-        public void SendMessage(string message)
-        {
-            if (server != null)
-            {
-                server.Send(new Message(message));
-            }
-        }
-
         public void SendString(string text)
         {
             if (server != null)
@@ -192,10 +184,42 @@ namespace OtherworldsServer
             }
         }
 
+        int index = 0;
+        public void SendMessage(string content)
+        {
+            if (server != null)
+            {
+                Message message = new Message(content);
+                message.index = index++;
+                server.Send(message);
+            }
+        }
+
+        public void SendTo(string id, string message)
+        {
+            if (server != null)
+            {
+                server.SendTo(id, message);
+            }
+        }
+
         public void ShowIP()
         {
             Log($"服务端的部署IP：{serverHost}:{serverPort}");
             Log($"客户端的目标IP：{clientHost}:{clientPort}");
+        }
+
+        public void Clear()
+        {
+            outputBox.Items.Clear();
+        }
+
+        public void CloseServer()
+        {
+            server.Stop();
+            server = null;
+            Log("服务已终止");
+            Text = "调试工具";
         }
         #endregion 
     }

@@ -15,6 +15,7 @@ namespace OtherworldsServer
             Content
         }
 
+        public int index;
         public string message;
         public Type type;
 
@@ -26,7 +27,7 @@ namespace OtherworldsServer
 
         public override string ToString()
         {
-            return $"[Message.{type}] {message}";
+            return $"[{index}][Message.{type}] {message}";
         }
     }
 }
