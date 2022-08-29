@@ -48,15 +48,7 @@ namespace OtherworldsServer
                 mStream.Flush();
                 mStream.Seek(0, SeekOrigin.Begin);
                 BinaryFormatter formatter = new BinaryFormatter();
-
-                try
-                {
-                    return formatter.Deserialize(mStream);
-                }
-                catch(Exception e)
-                {
-                    return e.Message;
-                }
+                return formatter.Deserialize(mStream);
             }
         }
 

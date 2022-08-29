@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using OtherworldDataform;
 
 namespace OtherworldsServer
 {
@@ -18,6 +19,7 @@ namespace OtherworldsServer
         Thread handerThread;
         object clients_lock = new object();
         Dictionary<string, ClientHandler> clients = new Dictionary<string, ClientHandler>();
+        private Action stopCallback;
         public readonly Queue<object> outputQueue = new Queue<object>();
 
         public GameServer(string host, int port)
@@ -54,13 +56,20 @@ namespace OtherworldsServer
                         foreach(string id in clients.Keys)
                         {
                             object receive = clients[id].GetNextOutput();
-                            if(receive is Message msg && msg.type == Message.Type.Command)
+                            if(receive is Message msg)
                             {
-                                Command(id, msg);
-                            }
-                            else if (receive is Message msg1 && msg1.type == Message.Type.Content)
-                            {
-                                outputQueue.Enqueue($"{id} {msg1.message}");
+                                if(msg.type == Message.Type.Command)
+                                {
+                                    Command(id, msg);
+                                }
+                                else if (msg.type == Message.Type.Content)
+                                {
+                                    outputQueue.Enqueue($"{id}: {msg.message}");
+                                }
+                                else if(msg.type == Message.Type.Disconnect)
+                                {
+                                    outputQueue.Enqueue($"{id} 下线，IP: {clients[id].socket.LocalEndPoint as IPEndPoint}");
+                                }
                             }
                             else if (receive != null)
                             {
@@ -72,6 +81,11 @@ namespace OtherworldsServer
             });
             handerThread.IsBackground = true;
             handerThread.Start();
+        }
+
+        public GameServer(string host, int port, Action stopCallback) : this(host, port)
+        {
+            this.stopCallback = stopCallback;
         }
 
         public void Remove(string id)
@@ -120,7 +134,7 @@ namespace OtherworldsServer
 
         public void SendTo(string id, object message)
         {
-            throw new NotImplementedException();
+            clients[id].sendQueue.Enqueue(message);
         }
 
         public void Stop()
@@ -134,41 +148,61 @@ namespace OtherworldsServer
             }
             clients.Clear();
             run = false;
+            stopCallback.Invoke();
         }
 
         #region cmds
         private void Command(string id, Message msg)
         {
-            string[] cmds = msg.message.Split();
-            var methodInfo = GetType().GetMethod(cmds[0]);
+            object[] parameters = msg.packages;
+            string cmd = parameters[0] as string;
+            var methodInfo = GetType().GetMethod(cmd);
             if (methodInfo != null)
             {
                 Thread thread = new Thread(() =>
                 {
                     try
                     {
-                        string[] parameters = new string[] {id};
-                        parameters = parameters.Concat(cmds.Skip(1)).ToArray();
-                        methodInfo.Invoke(this, parameters);
+                        object[] id_parameters = new object[] {id};
+                        id_parameters = id_parameters.Concat(parameters.Skip(1)).ToArray();
+                        Console.WriteLine(methodInfo.Name);
+                        Console.WriteLine(methodInfo.GetParameters().Length);
+                        Console.WriteLine(id_parameters.Length);
+                        methodInfo.Invoke(this, id_parameters);
                     }
                     catch (Exception e)
                     {
-                        outputQueue.Enqueue($"指令{msg.message}调用失败：{e.Message}");
+                        outputQueue.Enqueue($"指令{parameters[0]}调用失败：{e.Message}");
                     }
                 });
                 thread.Start();
             }
         }
 
-        public void SetId(string oldId, string newId)
+        public void Command_SetId(string _id_, string newId)
         {
-            if (oldId == newId) return;
-            ClientHandler handler = clients[oldId];
+            if (_id_ == newId) 
+            {
+                clients[_id_].sendQueue.Enqueue("新id不能与原id一致");
+                return;
+            }
+            if(clients.ContainsKey(newId))
+            {
+                clients[_id_].sendQueue.Enqueue("id重复");
+                return;
+            }
             lock (clients_lock)
             {
+                ClientHandler handler = clients[_id_];
+                clients.Remove(_id_);
                 clients.Add(newId, handler);
-                clients.Remove(oldId);
             }
+            clients[newId].sendQueue.Enqueue($"id变更为{newId}");
+        }
+
+        public void Command_SendTo(string _id_, string targetId, string message)
+        {
+            SendTo(targetId, $"{_id_}: {message}");
         }
         #endregion
     }

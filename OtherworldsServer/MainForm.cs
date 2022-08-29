@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Reflection;
 using System.Threading;
+using Message = OtherworldDataform.Message;
 
 namespace OtherworldsServer
 {
@@ -26,11 +27,11 @@ namespace OtherworldsServer
         {
             CheckForIllegalCrossThreadCalls = false;
             InitializeComponent();
-            MethodInfo[] info = GetType().GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public);
+            MethodInfo[] methods = GetType().GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public);
             Log("Help List:");
-            for (int i = 0; i < info.Length; i++)
+            for (int i = 0; i < methods.Length; i++)
             {
-                var md = info[i];
+                var md = methods[i];
                 string mothodName = md.Name;
                 ParameterInfo[] paramInfos = md.GetParameters();
                 Log($"\\{mothodName}{GetParamNames(paramInfos)}");
@@ -105,9 +106,9 @@ namespace OtherworldsServer
                 object _object = server.GetObject();
                 if (_object != null)
                 {
-                    if(_object is string)
+                    if (_object is string text)
                     {
-                        Log($"{_object}");
+                        Log(text);
                     }
                     else
                     {
@@ -132,7 +133,7 @@ namespace OtherworldsServer
             {
                 try
                 {
-                    server = new GameServer(serverHost, serverPort);
+                    server = new GameServer(serverHost, serverPort, ()=> { server = null; });
                     receiverThread = new Thread(() => { ReceiveLoop(); });
                     receiverThread.IsBackground = true;
                     receiverThread.Start();
@@ -165,7 +166,7 @@ namespace OtherworldsServer
                 try
                 {
                     Log("正在连接服务器……");
-                    server = new TestClient(clientHost, clientPort);
+                    server = new TestClient(clientHost, clientPort, null ,() => { server = null; });
                     receiverThread = new Thread(() => { ReceiveLoop(); });
                     receiverThread.IsBackground = true;
                     receiverThread.Start();

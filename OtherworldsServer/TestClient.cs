@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using Message = OtherworldDataform.Message;
 
 namespace OtherworldsServer
 {
@@ -23,6 +24,8 @@ namespace OtherworldsServer
         readonly Queue<object> receiveQueue = new Queue<object>();
 
         private string id;
+        private Action stopCallback;
+
         public string ID 
         {
             get
@@ -32,7 +35,7 @@ namespace OtherworldsServer
             set
             {
                 id = value;
-                Send(new Message($"{nameof(ClientHandler.SetId)} {id}", Message.Type.Command));
+                Send(new Message(Message.Type.Command, nameof(GameServer.Command_SetId),  id));
             } 
         }
 
@@ -44,7 +47,7 @@ namespace OtherworldsServer
             server.Connect(ipe);
 
             if (id == null)
-                ID = (server.RemoteEndPoint as IPEndPoint).ToString();
+                id = ipe.ToString();
             else
                 ID = id;
 
@@ -55,6 +58,11 @@ namespace OtherworldsServer
             senderThread = new Thread(() => { SendLoop(); });
             senderThread.IsBackground = true;
             senderThread.Start();
+        }
+
+        public TestClient(string host, int port, string id = null, Action stopCallback = null) : this(host, port, id)
+        {
+            this.stopCallback = stopCallback;
         }
 
         void SendLoop()
@@ -114,13 +122,14 @@ namespace OtherworldsServer
 
         public void SendTo(string id, object message)
         {
-            throw new NotImplementedException();
+            Send(new Message(Message.Type.Command, nameof(GameServer.Command_SendTo), id, message));
         }
 
         public void Stop()
         {
             run = false;
             TCPTool.Close(server);
+            stopCallback.Invoke();
         }
     }
 }
